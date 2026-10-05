@@ -1,0 +1,138 @@
+// ==========================================
+// 1. 金鑰與模型設定
+// ==========================================
+const CONFIG = {
+  // 你的 LINE Channel Access Token
+  LINE_ACCESS_TOKEN: 'XXX',
+
+  // 你的 Gemini API Key
+  GEMINI_API_KEY: 'XXXX',
+
+  // 使用的模型（建議使用速度快又聰明的 gemini-2.5-flash 或 gemini-1.5-flash）
+  GEMINI_MODEL: 'gemini-3.8-flash'
+};
+
+// ==========================================
+// 2. 接收 LINE 訊息 (Webhook 入口)
+// ==========================================
+function doPost(e) {
+  try {
+    const contents = JSON.parse(e.postData.contents);
+    const events = contents.events;
+
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+
+      // 只處理使用者傳送的文字訊息
+      if (event.type === 'message' && event.message.type === 'text') {
+        const userPrompt = event.message.text.trim();
+        const replyToken = event.replyToken;
+
+        // 呼叫 Gemini AI
+        const aiResponse = callGemini(userPrompt);
+
+        // 將 AI 的回答回傳給 LINE 使用者
+        replyMessage(replyToken, aiResponse);
+      }
+    }
+  } catch (err) {
+    console.error("處理 Webhook 錯誤: " + err.toString());
+  }
+
+  return ContentService.createTextOutput("OK").setMimeType(ContentService.MimeType.TEXT);
+}
+
+// ==========================================
+// 3. 呼叫 Google Gemini API (含自動重試機制)
+// ==========================================
+function callGemini(prompt) {
+  const apiKey = CONFIG.GEMINI_API_KEY.trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: prompt }
+        ]
+      }
+    ]
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  // 遇到 503 流量高峰時，最多自動重試 3 次
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const statusCode = response.getResponseCode();
+      const result = JSON.parse(response.getContentText());
+
+      // 呼叫成功
+      if (statusCode === 200 && result.candidates && result.candidates.length > 0) {
+        return result.candidates[0].content.parts[0].text;
+      }
+
+      // 如果遇到 503 (伺服器繁忙) 或 429 (請求頻率限制)，自動暫停後重試
+      if (statusCode === 503 || statusCode === 429) {
+        console.warn(`第 ${attempt} 次呼叫遇到 ${statusCode} 塞車，等待後重試...`);
+        if (attempt < maxRetries) {
+          Utilities.sleep(1500 * attempt); // 分別等待 1.5 秒、3 秒後重試
+          continue;
+        }
+      }
+
+      // 若為其他錯誤（如 400 或重試無效）
+      const errorDetail = result.error ? result.error.message : response.getContentText();
+      console.error("Gemini 錯誤:", statusCode, errorDetail);
+      return `【Gemini API 暫時繁忙】\n狀態碼: ${statusCode}\n請稍候 10 秒後再試一次！`;
+
+    } catch (err) {
+      console.error(`第 ${attempt} 次發生例外:`, err.toString());
+      if (attempt < maxRetries) {
+        Utilities.sleep(1500);
+        continue;
+      }
+    }
+  }
+
+  return "【Google 伺服器目前流量過大】請稍候片刻再傳送訊息。";
+}
+// ==========================================
+// 4. 回傳訊息至 LINE
+// ==========================================
+function replyMessage(replyToken, messageText) {
+  const url = 'https://api.line.me/v2/bot/message/reply';
+
+  // LINE 單則文字上限為 5000 字元，超過時做安全截斷
+  if (messageText.length > 4900) {
+    messageText = messageText.substring(0, 4900) + "\n\n...(回覆文字過長，已截斷)";
+  }
+
+  const payload = {
+    replyToken: replyToken,
+    messages: [
+      {
+        type: 'text',
+        text: messageText
+      }
+    ]
+  };
+
+  UrlFetchApp.fetch(url, {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + CONFIG.LINE_ACCESS_TOKEN.trim()
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+}
