@@ -1,0 +1,36 @@
+% hand-first.tex：第一部分「先用手做一輪」的起始檔。
+% 百分比符號後面是註解，不會出現在 PDF 裡。
+% Overleaf：左下角齒輪 Settings → Compiler 分頁選 XeLaTeX，再按 Recompile。
+\documentclass[12pt,a4paper]{article}
+\usepackage{xeCJK}
+% 下面這一行在挑中文字型：Overleaf 用 Noto Serif CJK TC，Windows 用微軟正黑體，Mac 用宋體。
+\IfFontExistsTF{Noto Serif CJK TC}{\setCJKmainfont{Noto Serif CJK TC}}{\IfFontExistsTF{Microsoft JhengHei}{\setCJKmainfont{Microsoft JhengHei}}{\setCJKmainfont{Songti TC}}}
+\usepackage[margin=2.5cm]{geometry}
+\renewcommand{\refname}{參考文獻}
+
+\title{我的第一份 LaTeX 文件}
+\author{你的稱呼（可用化名）}
+\date{2026 年 11 月}
+
+\begin{document}
+\maketitle
+
+\section{這份文件在做什麼}
+這是用 LaTeX 寫的一頁文件。原稿是純文字，按下 Recompile 之後才變成 PDF。
+\textbf{粗體}要用標記寫出來，章節編號由它自己排。
+
+\section{三件我今天要學的事}
+\begin{itemize}
+  \item 改原稿、重新編譯，看 PDF 怎麼變。
+  \item 讀懂一個錯誤訊息，把它修好。
+  \item 加一筆引用，讓參考文獻自己出現。
+\end{itemize}
+
+\section{一篇文獻}
+% 做到「加一筆引用」那一步時：把下面這一行開頭的百分比符號拿掉。
+% 這裡引用一篇 2021 年刊登在 BMC Geriatrics 的研究 \cite{Su2021}。
+
+% 做到「加一筆引用」那一步時：把下面兩行開頭的百分比符號也拿掉。
+% \bibliographystyle{plain}
+% \bibliography{refs}
+\end{document}

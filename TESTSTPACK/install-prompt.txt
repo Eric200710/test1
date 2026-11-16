@@ -1,0 +1,1 @@
+請讀這個資料夾裡的 AGENT-GUIDE.md，照它替我安裝 gnuplot 和 Zotero，再畫出兩張圖。先給我計畫，我回「可以」你再動手。
